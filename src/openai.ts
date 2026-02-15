@@ -4,13 +4,19 @@ import { formatTimeUntil } from "./helpers";
 export interface openaiQuota {
   accountEmail: string;
   accountType: string;
-  primaryQuota: {
+  rateLimitPrimaryWindow: {
     usedPercent: number | null;
     remainingPercent: number | null;
     resetAt: string | null;
     resetIn: string | null;
   };
-  secondaryQuota: {
+  rateLimitSecondaryWindow: {
+    usedPercent: number | null;
+    remainingPercent: number | null;
+    resetAt: string | null;
+    resetIn: string | null;
+  };
+  codeReviewPrimaryWindow: {
     usedPercent: number | null;
     remainingPercent: number | null;
     resetAt: string | null;
@@ -39,7 +45,16 @@ interface openaiQuotaRawResponse {
       reset_at: number;
     } | null;
   };
-  code_review_rate_limit: unknown;
+  code_review_rate_limit: {
+    allowed: boolean;
+    limit_reached: boolean;
+    primary_window: {
+      used_percent: number;
+      limit_window_seconds: number;
+      reset_after_seconds: number;
+      reset_at: number;
+    };
+  };
   additional_rate_limits: unknown;
   credits: unknown;
   promo: unknown;
@@ -72,35 +87,60 @@ export async function getOpenaiQuota(creds: Credentials): Promise<openaiQuota> {
 
   const result = (await response.json()) as openaiQuotaRawResponse;
 
-  const primary = result.rate_limit.primary_window;
-  const primaryUsedPercent = clampPercent(primary.used_percent);
-  const primaryResetAt = unixSecondsToIso(primary.reset_at);
-  const secondary = result.rate_limit.secondary_window;
-  const secondaryUsedPercent =
-    secondary === null ? null : clampPercent(secondary.used_percent);
-  const secondaryResetAt =
-    secondary === null ? null : unixSecondsToIso(secondary.reset_at);
-
-  return {
+  const finalResult: openaiQuota = {
     accountEmail: result.email,
     accountType: result.plan_type,
-    primaryQuota: {
-      usedPercent: primaryUsedPercent,
-      remainingPercent: clampPercent(100 - primaryUsedPercent),
-      resetAt: primaryResetAt,
-      resetIn: formatTimeUntil(primaryResetAt),
+    rateLimitPrimaryWindow: {
+      usedPercent: null,
+      remainingPercent: null,
+      resetAt: null,
+      resetIn: null,
     },
-    secondaryQuota: {
-      usedPercent: secondaryUsedPercent,
-      remainingPercent:
-        secondaryUsedPercent === null
-          ? null
-          : clampPercent(100 - secondaryUsedPercent),
-      resetAt: secondaryResetAt,
-      resetIn:
-        secondaryResetAt === null ? null : formatTimeUntil(secondaryResetAt),
+    rateLimitSecondaryWindow: {
+      usedPercent: null,
+      remainingPercent: null,
+      resetAt: null,
+      resetIn: null,
+    },
+    codeReviewPrimaryWindow: {
+      usedPercent: null,
+      remainingPercent: null,
+      resetAt: null,
+      resetIn: null,
     },
   };
+
+  const primary = result.rate_limit.primary_window;
+  if (primary) {
+    const quota = {} as openaiQuota["rateLimitPrimaryWindow"];
+    quota.usedPercent = clampPercent(primary.used_percent);
+    quota.remainingPercent = clampPercent(100 - quota.usedPercent);
+    quota.resetAt = unixSecondsToIso(primary.reset_at);
+    quota.resetIn = formatTimeUntil(quota.resetAt);
+    finalResult.rateLimitPrimaryWindow = quota;
+  }
+
+  const secondary = result.rate_limit.secondary_window;
+  if (secondary) {
+    const quota = {} as openaiQuota["rateLimitSecondaryWindow"];
+    quota.usedPercent = clampPercent(secondary.used_percent);
+    quota.remainingPercent = clampPercent(100 - quota.usedPercent);
+    quota.resetAt = unixSecondsToIso(secondary.reset_at);
+    quota.resetIn = formatTimeUntil(quota.resetAt);
+    finalResult.rateLimitSecondaryWindow = quota;
+  }
+
+  const codeReview = result.code_review_rate_limit.primary_window;
+  if (codeReview) {
+    const quota = {} as openaiQuota["codeReviewPrimaryWindow"];
+    quota.usedPercent = clampPercent(codeReview.used_percent);
+    quota.remainingPercent = clampPercent(100 - quota.usedPercent);
+    quota.resetAt = unixSecondsToIso(codeReview.reset_at);
+    quota.resetIn = formatTimeUntil(quota.resetAt);
+    finalResult.codeReviewPrimaryWindow = quota;
+  }
+
+  return finalResult;
 }
 
 function unixSecondsToIso(value: number): string {
