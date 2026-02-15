@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "format": "prettier --write --log-level warn .",
+    "test": "bun test",
     "lint": "biome check . && prettier --check --log-level warn ."
   },
   "devDependencies": {
