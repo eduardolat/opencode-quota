@@ -1,7 +1,7 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-interface Credentials {
+export interface Credentials {
   ghcpApiKey?: string;
   zaiApiKey?: string;
   openaiApiKey?: string;
