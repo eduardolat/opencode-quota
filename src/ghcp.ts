@@ -4,11 +4,11 @@ import { formatTimeUntil } from "./helpers";
 export interface ghcpQuota {
   accountEmail: string;
   accountType: string;
-  premiumRequestsTotal: number;
-  premiumRequestsUsed: number;
-  premiumRequestsUsedPercent: number;
-  premiumRequestsRemaining: number;
-  premiumRequestsRemainingPercent: number;
+  requestsTotal: number;
+  requestsUsed: number;
+  requestsUsedPercent: number;
+  requestsRemaining: number;
+  requestsRemainingPercent: number;
   resetAt: string;
   resetIn: string;
 }
@@ -104,11 +104,11 @@ export async function getGhcpQuota(creds: Credentials): Promise<ghcpQuota> {
   return {
     accountEmail: result.login,
     accountType: result.access_type_sku,
-    premiumRequestsTotal: prTotal,
-    premiumRequestsUsed: prUsed,
-    premiumRequestsUsedPercent: prUsedPercent,
-    premiumRequestsRemaining: prRemaining,
-    premiumRequestsRemainingPercent: prRemainingPercent,
+    requestsTotal: prTotal,
+    requestsUsed: prUsed,
+    requestsUsedPercent: prUsedPercent,
+    requestsRemaining: prRemaining,
+    requestsRemainingPercent: prRemainingPercent,
     resetAt: result.quota_reset_date_utc,
     resetIn: formatTimeUntil(result.quota_reset_date_utc),
   };
