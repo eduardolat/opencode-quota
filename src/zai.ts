@@ -2,19 +2,24 @@ import type { Credentials } from "./creds";
 import { formatTimeUntil } from "./helpers";
 
 export interface zaiQuota {
+  accountId: string;
   accountType: string;
-  limits: {
-    type: string;
-    total: number;
-    used: number;
+  tokenQuota: {
     usedPercent: number;
-    remaining: number;
     remainingPercent: number;
     resetAt: string;
     resetIn: string;
-  }[];
-  resetAt: string;
-  resetIn: string;
+  };
+  mcpQuota: {
+    usedPercent: number;
+    remainingPercent: number;
+    resetAt: string;
+    resetIn: string;
+    details: Array<{
+      modelCode: string;
+      usage: number;
+    }>;
+  };
 }
 
 interface zaiQuotaRawResponse {
@@ -22,7 +27,7 @@ interface zaiQuotaRawResponse {
   msg: string;
   data: {
     limits: Array<{
-      type: string;
+      type: "TIME_LIMIT" | "TOKENS_LIMIT" | string;
       unit: number;
       number: number;
       usage?: number;
@@ -73,112 +78,43 @@ export async function getZaiQuota(creds: Credentials): Promise<zaiQuota> {
     );
   }
 
-  const limits = result.data.limits.map(mapLimit);
-  const nextResetTs = getEarliestResetTimestamp(result.data.limits);
-  const resetAt = Number.isFinite(nextResetTs)
-    ? new Date(nextResetTs).toISOString()
-    : "unknown";
+  const tokenLimit = result.data.limits.find(
+    (limit) => limit.type === "TOKENS_LIMIT",
+  );
+  const timeLimit = result.data.limits.find(
+    (limit) => limit.type === "TIME_LIMIT",
+  );
+
+  const tokenResetAt = toIsoOrUnknown(tokenLimit?.nextResetTime);
+  const tokenUsedPercent = clampPercent(tokenLimit?.percentage ?? 0);
+
+  const mcpResetAt = toIsoOrUnknown(timeLimit?.nextResetTime);
+  const mcpUsedPercent = clampPercent(timeLimit?.percentage ?? 0);
 
   return {
+    accountId: maskToken(creds.zaiApiKey),
     accountType: result.data.level,
-    limits,
-    resetAt,
-    resetIn: formatTimeUntil(resetAt),
+    tokenQuota: {
+      usedPercent: tokenUsedPercent,
+      remainingPercent: clampPercent(100 - tokenUsedPercent),
+      resetAt: tokenResetAt,
+      resetIn: toReadableFuture(tokenResetAt),
+    },
+    mcpQuota: {
+      usedPercent: mcpUsedPercent,
+      remainingPercent: clampPercent(100 - mcpUsedPercent),
+      resetAt: mcpResetAt,
+      resetIn: toReadableFuture(mcpResetAt),
+      details: (timeLimit?.usageDetails ?? []).map((item) => ({
+        modelCode: item.modelCode,
+        usage: item.usage,
+      })),
+    },
   };
 }
 
-function mapLimit(
-  limit: zaiQuotaRawResponse["data"]["limits"][number],
-): zaiQuota["limits"][number] {
-  const usedPercent = clampPercent(limit.percentage ?? 0);
-  const total = deriveTotal(limit);
-  const used = deriveUsed(limit, total, usedPercent);
-  const remaining = deriveRemaining(limit, total, used);
-  const remainingPercent = clampPercent(100 - usedPercent);
-  const resetAt = toIsoOrUnknown(limit.nextResetTime);
-
-  return {
-    type: limit.type,
-    total,
-    used,
-    usedPercent,
-    remaining,
-    remainingPercent,
-    resetAt,
-    resetIn: formatTimeUntil(resetAt),
-  };
-}
-
-function deriveTotal(
-  limit: zaiQuotaRawResponse["data"]["limits"][number],
-): number {
-  if (typeof limit.usage === "number") {
-    return Math.max(0, limit.usage);
-  }
-
-  if (typeof limit.currentValue === "number" && limit.percentage > 0) {
-    return Math.max(0, round2(limit.currentValue / (limit.percentage / 100)));
-  }
-
-  if (typeof limit.remaining === "number" && limit.percentage < 100) {
-    return Math.max(0, round2(limit.remaining / (1 - limit.percentage / 100)));
-  }
-
-  return 0;
-}
-
-function deriveUsed(
-  limit: zaiQuotaRawResponse["data"]["limits"][number],
-  total: number,
-  usedPercent: number,
-): number {
-  if (typeof limit.currentValue === "number") {
-    return Math.max(0, limit.currentValue);
-  }
-
-  if (typeof limit.remaining === "number" && total > 0) {
-    return Math.max(0, round2(total - limit.remaining));
-  }
-
-  if (total > 0) {
-    return Math.max(0, round2(total * (usedPercent / 100)));
-  }
-
-  return 0;
-}
-
-function deriveRemaining(
-  limit: zaiQuotaRawResponse["data"]["limits"][number],
-  total: number,
-  used: number,
-): number {
-  if (typeof limit.remaining === "number") {
-    return Math.max(0, limit.remaining);
-  }
-
-  if (total > 0) {
-    return Math.max(0, round2(total - used));
-  }
-
-  return 0;
-}
-
-function getEarliestResetTimestamp(
-  limits: zaiQuotaRawResponse["data"]["limits"],
-): number {
-  const timestamps = limits
-    .map((limit) => limit.nextResetTime)
-    .filter((ts) => Number.isFinite(ts) && ts > Date.now());
-
-  if (timestamps.length === 0) {
-    return Number.NaN;
-  }
-
-  return Math.min(...timestamps);
-}
-
-function toIsoOrUnknown(timestampMs: number): string {
-  if (!Number.isFinite(timestampMs)) {
+function toIsoOrUnknown(timestampMs: number | undefined): string {
+  if (typeof timestampMs !== "number" || !Number.isFinite(timestampMs)) {
     return "unknown";
   }
 
@@ -190,13 +126,29 @@ function toIsoOrUnknown(timestampMs: number): string {
   return date.toISOString();
 }
 
+function toReadableFuture(resetAtIso: string): string {
+  const base = formatTimeUntil(resetAtIso);
+  if (base === "unknown" || base === "now") {
+    return base;
+  }
+
+  return `in ${base}`;
+}
+
 function clampPercent(value: number): number {
   if (!Number.isFinite(value)) {
     return 0;
   }
-  return Math.min(100, Math.max(0, round2(value)));
+
+  return Math.min(100, Math.max(0, Math.round(value * 100) / 100));
 }
 
-function round2(value: number): number {
-  return Math.round(value * 100) / 100;
+function maskToken(token: string): string {
+  if (token.length <= 8) {
+    return "********";
+  }
+
+  const start = token.slice(0, 6);
+  const end = token.slice(-4);
+  return `${start}...${end}`;
 }
