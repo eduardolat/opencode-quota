@@ -1,7 +1,13 @@
 {
   "name": "opencode-quota",
-  "module": "src/index.ts",
   "type": "module",
+  "module": "./src/index.ts",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts"
+    }
+  },
   "scripts": {
     "format": "prettier --write --log-level warn .",
     "test": "bun test",
