@@ -15,7 +15,7 @@ Change the quota command to meet your preferences.
 
 ```json
 {
-  "plugin": ["@eduardolat/opencode-quota"],
+  "plugin": ["opencode-quota-plugin"],
   "command": {
     "quota": {
       "description": "Query AI quota usage",
