@@ -1,7 +1,7 @@
 {
   "name": "opencode-quota-plugin",
   "description": "OpenCode plugin to display subscription quotas for GitHub Copilot, ChatGPT Codex, and z.ai",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "repository": {
     "type": "git",
     "url": "https://github.com/eduardolat/opencode-quota-plugin.git"
