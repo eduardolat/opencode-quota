@@ -23,7 +23,7 @@ Add this to your `config.json`, [learn more here.](https://opencode.ai/docs/conf
 
 ### 2. Add the command to trigger the plugin
 
-Download the [quota.md](https://raw.githubusercontent.com/eduardolat/opencode-quota-plugin/refs/heads/main/README.md) file and place in your opencode `commands` directory.
+Download the [quota.md](https://raw.githubusercontent.com/eduardolat/opencode-quota-plugin/refs/heads/main/quota.md) file and place in your opencode `commands` directory.
 
 Learn more about the `commands` directory and it's path [here.](https://opencode.ai/docs/commands/)
 
