@@ -9,21 +9,27 @@ Get your AI subscription usage directly inside OpenCode with a single `quota` to
 - Z.ai token + MCP quota usage
 - Human-readable reset countdowns (`2d 4h`, `1h 20m`)
 
-## Quick start
+## Install
 
-Change the quota command to meet your preferences.
+### 1. Install thee plugin
+
+Add this to your `config.json`, [learn more here.](https://opencode.ai/docs/config/)
 
 ```json
 {
-  "plugin": ["opencode-quota-plugin"],
-  "command": {
-    "quota": {
-      "description": "Query AI quota usage",
-      "template": "Use the `quota` tool to query AI quota usage. Return the result formatted for humans."
-    }
-  }
+  "plugin": ["opencode-quota-plugin"]
 }
 ```
+
+### 2. Add the command to trigger the plugin
+
+Download the [quota.md](https://raw.githubusercontent.com/eduardolat/opencode-quota-plugin/refs/heads/main/README.md) file and place in your opencode `commands` directory.
+
+Learn more about the `commands` directory and it's path [here.](https://opencode.ai/docs/commands/)
+
+### 3. Use the plugin
+
+Open `OpenCode`, run `/quota` command and done!
 
 ## Notes
 
