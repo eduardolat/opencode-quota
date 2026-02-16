@@ -8,7 +8,7 @@
     }
   },
   "scripts": {
-    "build": "bun build ./src/index.ts --outdir ./dist --format cjs",
+    "build": "bun build ./src/index.ts --outdir ./dist",
     "format": "prettier --write --log-level warn .",
     "test": "bun test",
     "lint": "biome check . && prettier --check --log-level warn ."
